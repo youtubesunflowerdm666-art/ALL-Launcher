@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -29,10 +29,22 @@ jobs:
           chmod +x gradlew
           ./gradlew :ZalithLauncher:assembleDebug -Darch=arm64
 
-      - name: Upload APK
+      - name: Upload ZIP artifact backup
         uses: actions/upload-artifact@v7
         with:
           name: ALL-Launcher-arm64-debug-apk
           path: ZalithLauncher/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 7
+
+      - name: Attach raw APK to a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk_file="$(find ZalithLauncher/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          test -n "$apk_file"
+          gh release create "debug-apk-${GITHUB_RUN_ID}" "$apk_file" \
+            --draft \
+            --title "ALL Launcher ARM64 Debug APK (${GITHUB_RUN_NUMBER})" \
+            --notes "Draft download for the ARM64 Debug APK. Built from commit ${GITHUB_SHA}." \
+            --target "$GITHUB_SHA"
